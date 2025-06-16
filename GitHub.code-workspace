@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../Dokumenti/GitHub"
+		},
+		{
+			"name": "car-racing-model",
+			"path": "../Car racing/car-racing-model"
+		},
+		{
+			"name": "NowForecast",
+			"path": "NowForecast"
+		}
+	],
+	"settings": {}
+}
