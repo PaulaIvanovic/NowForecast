@@ -10,13 +10,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Weather App',
+      title: 'NowForecast',
       theme: ThemeData(
-        primarySwatch: Colors.blue, // You can customize this
-        brightness: Brightness.light, // Or Brightness.dark for dark theme
-        fontFamily: 'Roboto', // Example font, ensure it's added if custom
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.grey.shade300,
+          brightness: Brightness.light,
+        ),
+        brightness: Brightness.light,
+        fontFamily: 'Roboto', //possibly change font family
       ),
-      debugShowCheckedModeBanner: false, // Removes the debug banner
+      debugShowCheckedModeBanner: false,
       home: const HomeScreen(),
     );
   }
@@ -30,62 +33,149 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _cityName = "Rijeka"; // Default city
+  String _cityName = "Rijeka"; //this will be based on location or searched city
+
   final TextEditingController _searchController = TextEditingController();
 
-  // Placeholder for weather data - you'll replace this with real data
-  String _currentTemperature = "23°C";
-  String _feelsLikeTemperature = "20°C";
-  String _weatherCondition = "Sunny"; // For icon
-  String _date = "25.05.2025"; // Example date
-  String _dayNight = "DAN"; // Or NOC
+  //information about current weather
+  String _weatherCondition =
+      "snow"; // for main display: "sunny_day", "thunderstorm_day", etc.
+  String _feelsLikeTemperature = "20\u2103";
+  String _date = "25.05.2025";
+  String _dayNight = "DAN";
 
-  // Placeholder for forecast data
   final List<Map<String, String>> _forecast = [
-    {"day": "PON 26.05.", "temp": "22 / 15", "icon": "moon"},
-    {"day": "UTO 27.05.", "temp": "23 / 16", "icon": "cloud_rain"},
-    {"day": "SRI 28.05.", "temp": "24 / 17", "icon": "cloud_sun_rain"},
-    {"day": "ČET 29.05.", "temp": "21 / 14", "icon": "cloud"},
-    // Add more forecast items
+    {
+      "day": "PON 26.05.",
+      "temp": "22\u2103 / 15\u2103",
+      "icon_type": "moon_stars",
+    },
+    {"day": "UTO 27.05.", "temp": "20\u2103 / 13\u2103", "icon_type": "snow"},
+    {
+      "day": "SRI 28.05.",
+      "temp": "23\u2103 / 16\u2103",
+      "icon_type": "rain_sun",
+    },
+    {"day": "ČET 29.05.", "temp": "19\u2103 / 14\u2103", "icon_type": "rain"},
+    {
+      "day": "PET 30.05.",
+      "temp": "18\u2103 / 12\u2103",
+      "icon_type": "thunderstorm",
+    },
+    {"day": "SUB 31.05.", "temp": "25\u2103 / 18\u2103", "icon_type": "sun"},
+    {"day": "NED 01.06.", "temp": "22\u2103 / 15\u2103", "icon_type": "cloud"},
   ];
 
-  IconData _getWeatherIcon(String condition) {
-    // This is a very basic mapping. You'll want a more robust solution.
-    // Consider using weather icon packages or mapping API codes.
-    switch (condition.toLowerCase()) {
-      case 'sunny':
-        return Icons.wb_sunny;
-      case 'moon': // For night forecast
-        return Icons.nightlight_round;
-      case 'cloud_rain':
-        return Icons.grain; // Placeholder for rain
-      case 'cloud_sun_rain':
-        return Icons.filter_drama; // Placeholder for mixed
+  String _getForecastItemAssetPath(String iconType) {
+    switch (iconType.toLowerCase()) {
+      case 'moon_stars':
+        return 'assets/images/moon_stars_forecast.png';
+      case 'moon_cloud':
+        return 'assets/images/moon_cloudy_forecast.png';
+      case 'moon_dark_cloud':
+        return 'assets/images/moon_cloud_dark_forecast.png';
+      case 'snow':
+        return 'assets/images/snow_forecast.png';
+      case 'rain_sun':
+        return 'assets/images/rain_sun_forecast.png';
+      case 'rain':
+        return 'assets/images/rain_forecast.png';
+      case 'thunderstorm':
+        return 'assets/images/thunderstorm_forecast.png';
+      case 'sun':
+        return 'assets/images/sun_forecast.png';
       case 'cloud':
-        return Icons.cloud_outlined;
+        return 'assets/images/cloud_forecast.png';
+      case 'wind':
+        return 'assets/images/wind_day_forecast.png';
       default:
-        return Icons.wb_sunny; // Default icon
+        return 'assets/images/sun_forecast.png';
     }
+  }
+
+  Color _getForecastItemBackgroundColor(String iconType) {
+    switch (iconType.toLowerCase()) {
+      case 'moon_stars':
+        return const Color(0xFF114465);
+      case 'snow':
+        return const Color(0xFF5984BD);
+      case 'rain_sun':
+        return const Color(0xFF59A7FF);
+      case 'rain':
+        return const Color(0xFF979BAE);
+      case 'thunderstorm':
+        return const Color(0xFFA4A397);
+      case 'sun':
+        return const Color(0xFF5CD9E2);
+      case 'cloud':
+        return const Color(0xFF59A7FF);
+      default:
+        return Colors.grey.shade300;
+    }
+  }
+
+  Color _getForecastItemContentColor(String iconType) {
+    switch (iconType.toLowerCase()) {
+      case 'moon_stars':
+      case 'rain_sun':
+      case 'thunderstorm':
+      case 'cloud':
+      case 'snow':
+      case 'rain':
+      case 'sun':
+      default:
+        return Colors.white;
+    }
+  }
+
+  Widget _buildErrorPlaceholder(
+    BuildContext context,
+    Object exception,
+    StackTrace? stackTrace,
+    bool isMainImage,
+  ) {
+    String imageName = "Unknown";
+    if (exception.toString().contains("'")) {
+      try {
+        imageName = exception.toString().split(
+          "'",
+        )[1]; // Basic parsing to get asset name
+      } catch (e) {
+        // ignore
+      }
+    }
+    print('ERROR loading image: $imageName - $exception ');
+
+    return Container(
+      width: isMainImage ? 150 : 30,
+      height: isMainImage ? 150 : 30,
+      color: Colors.red.withOpacity(0.3),
+      child: Tooltip(
+        message: 'Error loading: $imageName\n$exception',
+        child: Icon(
+          Icons.broken_image,
+          color: Colors.red.shade900,
+          size: isMainImage ? 50 : 20,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Determine background color based on day/night or weather condition
-    Color backgroundColor = _dayNight == "DAN" && _weatherCondition == "Sunny"
-        ? Colors
-              .lightBlue
-              .shade200 // Light blue for sunny day
-        : Colors.blueGrey.shade300; // Default or night
+    Color overallBackgroundColor = _getForecastItemBackgroundColor(
+      _weatherCondition,
+    );
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: overallBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent, // Make AppBar transparent
-        elevation: 0, // Remove shadow
+        // ... (AppBar code is the same)
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
           onPressed: () {
-            // Handle drawer open or menu action
             print("Menu button pressed");
           },
         ),
@@ -111,7 +201,6 @@ class _HomeScreenState extends State<HomeScreen> {
               if (value.isNotEmpty) {
                 setState(() {
                   _cityName = value;
-                  // TODO: Fetch weather for new city
                   print("Search submitted: $value");
                   _searchController.clear();
                 });
@@ -123,20 +212,18 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.white),
             onPressed: () {
-              // Handle settings action
               print("Settings button pressed");
             },
           ),
         ],
       ),
       body: SingleChildScrollView(
-        // Allows scrolling if content overflows
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // Location Display
+              // ... (Location Row is the same)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -160,29 +247,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-
-              // Main Weather Icon (Large Sun)
-              Icon(
-                _getWeatherIcon(
-                  _weatherCondition,
-                ), // Dynamic based on condition
-                size: 150,
-                color: _weatherCondition == "Sunny"
-                    ? Colors.yellow.shade600
-                    : Colors.white,
-                shadows: const [
-                  Shadow(
-                    blurRadius: 5.0,
-                    color: Colors.black26,
-                    offset: Offset(2, 2),
-                  ),
-                ],
+              Image.asset(
+                _getForecastItemAssetPath(_weatherCondition),
+                height: 150,
+                width: 150,
+                errorBuilder:
+                    (
+                      BuildContext context,
+                      Object exception,
+                      StackTrace? stackTrace,
+                    ) {
+                      return _buildErrorPlaceholder(
+                        context,
+                        exception,
+                        stackTrace,
+                        true,
+                      );
+                    },
               ),
               const SizedBox(height: 10),
-
-              // Day/Night, Feels Like, Date
+              // ... (Text info is the same)
               Text(
-                _dayNight,
+                "$_dayNight / NOC",
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -198,61 +284,87 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const SizedBox(height: 30),
+              Column(
+                children: _forecast.map((item) {
+                  final String iconType = item["icon_type"]!;
+                  final Color itemBgColor = _getForecastItemBackgroundColor(
+                    iconType,
+                  );
+                  final Color itemContentColor = _getForecastItemContentColor(
+                    iconType,
+                  );
+                  final String itemAssetPath = _getForecastItemAssetPath(
+                    iconType,
+                  );
 
-              // Forecast List
-              Container(
-                padding: const EdgeInsets.all(12.0),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(
-                    0.7,
-                  ), // Semi-transparent white
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      spreadRadius: 1,
-                      blurRadius: 5,
-                      offset: const Offset(0, 3),
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 12.0,
                     ),
-                  ],
-                ),
-                child: Column(
-                  children: _forecast.map((item) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _getWeatherIcon(item["icon"]!),
-                            color: Colors.blueGrey.shade700,
-                            size: 30,
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: Text(
-                              item["day"]!,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.blueGrey.shade800,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            item["temp"]!,
+                    decoration: BoxDecoration(
+                      color: itemBgColor,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 3,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: Color.fromARGB(255, 77, 76, 76),
+                        width: 1.0, // Border width of 1.0 pixel
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Image.asset(
+                          itemAssetPath,
+                          height: 30,
+                          width: 30,
+                          //color: itemContentColor,
+                          errorBuilder:
+                              (
+                                BuildContext context,
+                                Object exception,
+                                StackTrace? stackTrace,
+                              ) {
+                                return _buildErrorPlaceholder(
+                                  context,
+                                  exception,
+                                  stackTrace,
+                                  false,
+                                );
+                              },
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: Text(
+                            item["day"]!,
                             style: TextStyle(
                               fontSize: 16,
-                              color: Colors.blueGrey.shade800,
+                              color: itemContentColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
+                        ),
+                        Text(
+                          item["temp"]!,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: itemContentColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
-              const SizedBox(height: 20), // Some spacing at the bottom
+              const SizedBox(height: 20),
             ],
           ),
         ),
