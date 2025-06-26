@@ -1,183 +1,210 @@
+// lib/app/modules/home/controllers/home_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart'; // Make sure to import intl
+import 'dart:convert';
 
-// Import app packages
+import 'package:nowforecast/app/data/models/weather_model.dart';
+import 'package:nowforecast/app/data/providers/weather_api_client.dart';
+
 import 'package:nowforecast/app/utils/app_colors.dart';
 import 'package:nowforecast/app/utils/app_images.dart';
-
-import 'package:nowforecast/app/routes/app_pages.dart'; // For navigation to other routes
+// Note: Route import removed as it wasn't used in the provided functions
+// import 'package:nowforecast/app/routes/app_pages.dart';
 
 class HomeController extends GetxController {
-  // Make state variables reactive using .obs
-  final cityName = "Rijeka"
-      .obs; // Will be based on location or searched city - .obs to make it observable by GetX
-  final weatherCondition =
-      "snow".obs; // For main display: "sunny_day", "thunderstorm_day", etc.
-  final feelsLikeTemperature = "20\u2103".obs;
-  final date = "25.05.2025".obs;
-  final dayNight = "DAN".obs;
+  final WeatherApiClient _weatherApiClient = WeatherApiClient();
+
+  final Rx<WeatherResponse?> weatherData = Rx<WeatherResponse?>(null);
+  final RxBool isLoading = true.obs; // Start with loading as true
+  final RxBool hasError = false.obs;
+  final RxString errorMessage = ''.obs;
+
+  // Reactive variables for UI display
+  final RxString cityName = "Loading...".obs;
+  // NOTE: currentTemperature is fetched but not used in the desired design, so it's kept here for potential future use.
+  final RxString feelsLikeTemperature = "Loading...".obs;
+  final RxString weatherConditionText = "Loading...".obs; // This will hold text like "Partly cloudy"
+  final RxString date = "".obs;
+  final RxString dayNight = "".obs;
+  final RxInt currentWeatherCode = 0.obs;
+
+  final RxList<ForecastDay> forecastDays = <ForecastDay>[].obs;
 
   final TextEditingController searchController = TextEditingController();
 
-  final RxList<Map<String, String>> forecast = <Map<String, String>>[
-    {
-      "day": "PON 26.05.",
-      "temp": "22\u2103 / 15\u2103",
-      "icon_type": "moon_stars",
-    },
-    {"day": "UTO 27.05.", "temp": "20\u2103 / 13\u2103", "icon_type": "snow"},
-    {
-      "day": "SRI 28.05.",
-      "temp": "23\u2103 / 16\u2103",
-      "icon_type": "rain_sun",
-    },
-    {"day": "ČET 29.05.", "temp": "19\u2103 / 14\u2103", "icon_type": "rain"},
-    {
-      "day": "PET 30.05.",
-      "temp": "18\u2103 / 12\u2103",
-      "icon_type": "thunderstorm",
-    },
-    {"day": "SUB 31.05.", "temp": "25\u2103 / 18\u2103", "icon_type": "sun"},
-    {"day": "NED 01.06.", "temp": "22\u2103 / 15\u2103", "icon_type": "cloud"},
-  ].obs; // Whole list reactive!
-
-  // Lifecycle method: Called when the controller is first initialized (e.g., when HomePage is shown)
   @override
   void onInit() {
     super.onInit();
-    // TODO: load initial data, fetch current location weather...
-
+    // ADDED: Set the default locale for date formatting to Croatian
+    // This ensures that `DateFormat('EEE')` will produce "PON", "UTO", etc.
+    // For best practice, this line should be in your `main()` function.
+    Intl.defaultLocale = 'hr_HR'; 
+    
     print("HomeController initialized");
+    fetchWeather("Rijeka"); // Initial fetch
   }
 
-  // Lifecycle method: Called when the controller is removed from memory
   @override
   void onClose() {
-    searchController.dispose(); // Dispose the TextEditingController
+    searchController.dispose();
     super.onClose();
     print("HomeController closed");
   }
 
-  //SEARCH
+  Future<void> fetchWeather(String city) async {
+    isLoading.value = true;
+    hasError.value = false;
+    errorMessage.value = '';
+    
+    try {
+      final Map<String, dynamic> rawWeatherData = await _weatherApiClient.fetchWeatherForecast(city, 7);
+      final WeatherResponse apiResponse = WeatherResponse.fromJson(rawWeatherData);
+
+      weatherData.value = apiResponse;
+
+      // Update all reactive variables
+      cityName.value = apiResponse.location.name;
+      feelsLikeTemperature.value = "${apiResponse.current.feelslikeC.round()}\u2103";
+      weatherConditionText.value = apiResponse.current.condition.text;
+      
+      // Use the location's local time for the date
+      final String dateOnly = apiResponse.location.localtime.split(' ')[0];
+      date.value = DateFormat('dd.MM.yyyy').format(DateTime.parse(dateOnly));
+
+      dayNight.value = apiResponse.current.isDay == 1 ? "DAN" : "NOĆ";
+      currentWeatherCode.value = apiResponse.current.condition.code;
+
+      if (apiResponse.forecast != null) {
+        forecastDays.assignAll(apiResponse.forecast!.forecastday);
+      } else {
+        forecastDays.clear();
+      }
+
+    } catch (e, st) {
+      print("Error fetching weather in HomeController: $e\n$st");
+      hasError.value = true;
+      errorMessage.value = "Failed to fetch weather data. Please check the city name or your connection.";
+      // Simplified error message for the user
+      _resetDisplayValuesOnError();
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void _resetDisplayValuesOnError() {
+    cityName.value = "Error";
+    feelsLikeTemperature.value = "--";
+    weatherConditionText.value = "Could not fetch data";
+    date.value = "--.--.----";
+    dayNight.value = "";
+    currentWeatherCode.value = 0; // Use a default code for error state
+    forecastDays.clear();
+  }
+
   void onSearchSubmitted(String value) {
     if (value.isNotEmpty) {
-      cityName.value = value; // Update reactive city name
       print("Search submitted: $value");
+      // Hide keyboard
+      FocusManager.instance.primaryFocus?.unfocus();
       searchController.clear();
-      // TODO: Integrate Weather API here.
-
-      // For now, just simulate a change:
-      weatherCondition.value = "rain_sun";
-      feelsLikeTemperature.value = "25\u2103";
-      date.value = "17.06.2025";
-      dayNight.value = "DAN";
-      // TODO: Update the forecast list based on new data from API
-      forecast.assignAll([
-        {
-          "day": "PON 17.06.",
-          "temp": "25\u2103 / 18\u2103",
-          "icon_type": "rain_sun",
-        },
-        {
-          "day": "UTO 18.06.",
-          "temp": "23\u2103 / 16\u2103",
-          "icon_type": "cloud",
-        },
-        {
-          "day": "SRI 19.06.",
-          "temp": "20\u2103 / 14\u2103",
-          "icon_type": "rain",
-        },
-        {
-          "day": "ČET 29.05.",
-          "temp": "19\u2103 / 14\u2103",
-          "icon_type": "rain",
-        },
-        {
-          "day": "PET 30.05.",
-          "temp": "18\u2103 / 12\u2103",
-          "icon_type": "thunderstorm",
-        },
-        {
-          "day": "SUB 31.05.",
-          "temp": "25\u2103 / 18\u2103",
-          "icon_type": "sun",
-        },
-        {
-          "day": "NED 01.06.",
-          "temp": "22\u2103 / 15\u2103",
-          "icon_type": "cloud",
-        },
-        // ... more updated forecast data
-      ]);
+      fetchWeather(value);
     }
   }
 
-  // Logic for Menu button
   void onMenuButtonPressed() {
     print("Menu button pressed in HomeController");
-    // TODO: Navigate to Menu/Saved Locations screen
-    // Get.toNamed(Routes.MENU);
   }
 
-  // Logic for Settings button
   void onSettingsButtonPressed() {
     print("Settings button pressed in HomeController");
-    // TODO: Navigate to Settings screen
   }
 
-  //Helper functions for asset paths and colors
-  //TODO: define more different weather options - based on API
-  String getForecastItemAssetPath(String iconType) {
-    switch (iconType.toLowerCase()) {
-      case 'moon_stars':
-        return AppImages.moonStarsForecast;
-      case 'moon_cloud':
-        return AppImages.moonCloudyForecast;
-      case 'moon_dark_cloud':
-        return AppImages.moonCloudDarkForecast;
-      case 'snow':
+  // --- Helper functions for mapping API codes to assets/colors ---
+
+  // CHANGED: Created a separate helper for the main image for flexibility.
+  String getMainWeatherAssetPath(int code) {
+    // For now, it can use the same logic as the forecast items.
+    // But now you can easily specify different, larger assets for the main display.
+    // For example: case 1000: return AppImages.sunMain;
+    return getForecastItemAssetPath(code);
+  }
+  
+  String getForecastItemAssetPath(int code) {
+    switch (code) {
+      case 1000:
+        return AppImages.sunForecast; // Sunny
+      case 1003:
+        return AppImages.rainSunForecast; // Partly cloudy (using rain_sun as a substitute)
+      case 1006: // Cloudy
+      case 1009:
+        return AppImages.cloudForecast; // Overcast
+      case 1066: // Patchy snow
+      case 1210:
+      case 1213:
+      case 1216:
+      case 1219:
+      case 1222:
+      case 1225: // Snow variants
         return AppImages.snowForecast;
-      case 'rain_sun':
-        return AppImages.rainSunForecast;
-      case 'rain':
-        return AppImages.rainForecast;
-      case 'thunderstorm':
+      case 1087: // Thundery outbreaks
+      case 1273:
+      case 1276: // Patchy rain with thunder
         return AppImages.thunderstormForecast;
-      case 'sun':
-        return AppImages.sunForecast;
-      case 'cloud':
-        return AppImages.cloudForecast;
-      case 'wind':
-        return AppImages.windDayForecast;
+      // Add all rain types
+      case 1063:
+      case 1150:
+      case 1153:
+      case 1180:
+      case 1183:
+      case 1186:
+      case 1189:
+      case 1192:
+      case 1195: // All rain variants
+        return AppImages.rainForecast;
+      // You can add more specific cases for mist, fog, etc.
       default:
-        return AppImages.sunForecast;
+        return AppImages.sunForecast; // A safe default
     }
   }
 
-  //TODO: define more colors for different weather
-  Color getForecastItemBackgroundColor(String iconType) {
-    switch (iconType.toLowerCase()) {
-      case 'moon_stars':
-        return AppColors.moonStarsBg;
-      case 'snow':
-        return AppColors.snowBg;
-      case 'rain_sun':
-        return AppColors.rainSunBg;
-      case 'rain':
-        return AppColors.rainBg;
-      case 'thunderstorm':
-        return AppColors.thunderstormBg;
-      case 'sun':
+  Color getForecastItemBackgroundColor(int code) {
+    switch (code) {
+      case 1000:
         return AppColors.sunBg;
-      case 'cloud':
+      case 1003:
+        return AppColors.rainSunBg;
+      case 1006:
+      case 1009:
         return AppColors.cloudBg;
+      case 1066:
+      case 1210:
+      case 1213:
+      case 1216:
+      case 1219:
+      case 1222:
+      case 1225:
+        return AppColors.snowBg;
+      case 1087:
+      case 1273:
+      case 1276:
+        return AppColors.thunderstormBg;
+      case 1063:
+      case 1150:
+      case 1153:
+      case 1180:
+      case 1183:
+      case 1186:
+      case 1189:
+      case 1192:
+      case 1195:
+        return AppColors.rainBg;
       default:
         return AppColors.defaultGreyBg;
     }
   }
 
-  Color getForecastItemContentColor(String iconType) {
+  Color getForecastItemContentColor(int code) {
     return Colors.white;
   }
 }

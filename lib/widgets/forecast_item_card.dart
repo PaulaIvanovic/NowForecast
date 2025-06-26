@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:nowforecast/app/utils/app_colors.dart'; // Import custom colors
 
 class ForecastItemCard extends StatelessWidget {
   final String day;
@@ -7,8 +6,7 @@ class ForecastItemCard extends StatelessWidget {
   final String iconPath;
   final Color backgroundColor;
   final Color contentColor;
-  final ImageErrorWidgetBuilder?
-  errorBuilder; // Made nullable as it might not always be required for every Image widget
+  final ImageErrorWidgetBuilder? errorBuilder; // Keep the errorBuilder for robustness
 
   const ForecastItemCard({
     super.key,
@@ -17,58 +15,51 @@ class ForecastItemCard extends StatelessWidget {
     required this.iconPath,
     required this.backgroundColor,
     required this.contentColor,
-    this.errorBuilder, // Optional, can be omitted if not needed
+    this.errorBuilder,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(
-          color: AppColors.borderColor, // Using the centralized color
-          width: 1.0,
-        ),
+    return Card(
+      color: backgroundColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0),
       ),
-      child: Row(
-        children: [
-          Image.asset(
-            iconPath,
-            height: 30,
-            width: 30,
-            errorBuilder: errorBuilder,
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Text(
-              day,
-              style: TextStyle(
-                fontSize: 16,
-                color: contentColor,
-                fontWeight: FontWeight.w500,
+      elevation: 3.0,
+      margin: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            // This flexible combination ensures text doesn't overflow
+            // and the temperature stays on the right.
+            Flexible(
+              child: Row(
+                children: [
+                  // 1. Icon on the left
+                  Image.asset(
+                    iconPath,
+                    width: 35,
+                    height: 35,
+                    errorBuilder: errorBuilder, // Use the passed error builder
+                  ),
+                  const SizedBox(width: 16),
+                  // 2. Day Text
+                  Text(
+                    day,
+                    style: TextStyle(color: contentColor, fontWeight: FontWeight.bold, fontSize: 16,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          Text(
-            temp,
-            style: TextStyle(
-              fontSize: 16,
-              color: contentColor,
-              fontWeight: FontWeight.w500,
+            // 3. Temperature on the right
+            Text(
+              temp,
+              style: TextStyle(color: contentColor, fontWeight: FontWeight.bold, fontSize: 16),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
