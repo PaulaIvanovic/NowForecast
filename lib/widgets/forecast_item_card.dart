@@ -1,14 +1,14 @@
+// lib/widgets/forecast_item_card.dart
+
 import 'package:flutter/material.dart';
-import 'package:nowforecast/app/utils/app_colors.dart'; // Import custom colors
 
 class ForecastItemCard extends StatelessWidget {
   final String day;
   final String temp;
-  final String iconPath;
+  final String iconPath; // This will now be a URL or local asset path
   final Color backgroundColor;
   final Color contentColor;
-  final ImageErrorWidgetBuilder?
-  errorBuilder; // Made nullable as it might not always be required for every Image widget
+  final Widget Function(BuildContext, Object, StackTrace?)? errorBuilder; // <--- This parameter is now correct
 
   const ForecastItemCard({
     super.key,
@@ -17,55 +17,47 @@ class ForecastItemCard extends StatelessWidget {
     required this.iconPath,
     required this.backgroundColor,
     required this.contentColor,
-    this.errorBuilder, // Optional, can be omitted if not needed
+    this.errorBuilder, // <--- Make it optional
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(
-          color: AppColors.borderColor, // Using the centralized color
-          width: 1.0,
-        ),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Image.asset(
-            iconPath,
-            height: 30,
-            width: 30,
-            errorBuilder: errorBuilder,
-          ),
-          const SizedBox(width: 15),
           Expanded(
-            child: Text(
-              day,
-              style: TextStyle(
-                fontSize: 16,
-                color: contentColor,
-                fontWeight: FontWeight.w500,
+            flex: 3,
+            child: Text(day, style: TextStyle(fontSize: 18, color: contentColor)),
+          ),
+          Expanded(
+            flex: 1,
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: Image.network(
+                // Use Image.network as it's an icon URL from API
+                iconPath,
+                height: 30,
+                width: 30,
+                fit: BoxFit.contain,
+                // Directly use the errorBuilder passed from the parent
+                errorBuilder: errorBuilder, // <--- CORRECTED THIS LINE
               ),
             ),
           ),
-          Text(
-            temp,
-            style: TextStyle(
-              fontSize: 16,
-              color: contentColor,
-              fontWeight: FontWeight.w500,
+          Expanded(
+            flex: 2,
+            child: Text(
+              temp,
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 18, color: contentColor),
             ),
           ),
         ],

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart'; // Import GetX
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
-import 'package:nowforecast/app/modules/home/controllers/home_controller.dart'; // Import controller
-import 'package:nowforecast/widgets/forecast_item_card.dart'; // Import reusable widget
+import 'package:nowforecast/app/modules/home/controllers/home_controller.dart';
+import 'package:nowforecast/widgets/forecast_item_card.dart';
+import 'package:nowforecast/app/utils/app_colors.dart';
+import 'package:nowforecast/app/data/models/weather_model.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
@@ -43,9 +46,9 @@ class HomeView extends GetView<HomeController> {
   Widget build(BuildContext context) {
     return Obx(
       () => Scaffold(
-        backgroundColor: controller.getForecastItemBackgroundColor(
-          controller.weatherCondition.value,
-        ),
+        backgroundColor: controller.isLoading.value || controller.hasError.value
+            ? AppColors.primaryColor
+            : controller.getForecastItemBackgroundColor(controller.currentWeatherCode.value),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -119,7 +122,7 @@ class HomeView extends GetView<HomeController> {
                 Obx(
                   () => Image.asset(
                     controller.getForecastItemAssetPath(
-                      controller.weatherCondition.value,
+                      controller.currentWeatherCode.value,
                     ),
                     height: 150,
                     width: 150,
@@ -164,25 +167,21 @@ class HomeView extends GetView<HomeController> {
                 const SizedBox(height: 30),
                 Obx(
                   () => Column(
-                    children: controller.forecast.map((item) {
-                      final String iconType = item["icon_type"]!;
+                    children: controller.forecastDays.map((forecastDay) {
+                      final code = forecastDay.day.condition.code; // Get code for each forecast day
                       return ForecastItemCard(
-                        day: item["day"]!,
-                        temp: item["temp"]!,
-                        iconPath: controller.getForecastItemAssetPath(iconType),
-                        backgroundColor: controller
-                            .getForecastItemBackgroundColor(iconType),
-                        contentColor: controller.getForecastItemContentColor(
-                          iconType,
-                        ),
-                        // CORRECTED: Provide a wrapper function here
+                        // Format day string for forecast card
+                        day: DateFormat('EEE dd.MM.').format(DateTime.parse(forecastDay.date)),
+                        // Max/Min temperature for forecast card
+                        temp: "${forecastDay.day.maxtempC.round()}\u2103 / ${forecastDay.day.mintempC.round()}\u2103",
+                        // Icon path based on forecast day's weather code
+                        iconPath: controller.getForecastItemAssetPath(code),
+                        // Background color based on forecast day's weather code
+                        backgroundColor: controller.getForecastItemBackgroundColor(code),
+                        // Content color (white)
+                        contentColor: controller.getForecastItemContentColor(code),
                         errorBuilder: (context, exception, stackTrace) {
-                          return _buildErrorPlaceholder(
-                            context,
-                            exception,
-                            stackTrace,
-                            false, // For forecast cards, isMainImage is false
-                          );
+                          return _buildErrorPlaceholder(context, exception, stackTrace, false);
                         },
                       );
                     }).toList(),
