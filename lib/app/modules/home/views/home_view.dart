@@ -90,6 +90,7 @@ class HomeView extends GetView<HomeController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
+                // City Name
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -102,24 +103,34 @@ class HomeView extends GetView<HomeController> {
                   ],
                 ),
                 const SizedBox(height: 20),
+
+                // Main Weather Icon
                 Image.asset(
                   controller.getMainWeatherAssetPath(controller.currentWeatherCode.value),
                   height: 150,
                   width: 150,
                   errorBuilder: (context, exception, stackTrace) => _buildErrorPlaceholder(context, exception, stackTrace, true),
                 ),
+
                 const SizedBox(height: 10),
+
+                // Main Weather Text
                 Text(
-                  "${controller.weatherConditionText.value}",
+                  controller.weatherConditionText.value,
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white),
                 ),
+
+                // Main Temperature
                 Text(
-                  "${controller.todayTempRange.value}",
+                  controller.todayTempRange.value,
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white),
                 ),
                 Text("Feels like: ${controller.feelsLikeTemperature.value}", style: const TextStyle(fontSize: 16, color: Colors.white70)),
                 Text(controller.date.value, style: const TextStyle(fontSize: 16, color: Colors.white70)),
+
                 const SizedBox(height: 30),
+
+                // Forecast Cards
                 Obx(() {
                   return Container(
                     padding: const EdgeInsets.all(12.0),
@@ -129,23 +140,25 @@ class HomeView extends GetView<HomeController> {
                       border: Border.all(color: Colors.white.withOpacity(0.7)),
                     ),
                     child: Column(
-                      children: controller.forecastDays.map((forecastDay) {
+                      children: List.generate(controller.forecastDays.length, (index) {
+                        final forecastDay = controller.forecastDays[index];
                         final code = forecastDay.day.condition.code;
+                        final formattedDate = DateFormat('EEEE dd.MM.', 'en').format(DateTime.parse(forecastDay.date));
+                        final displayDay = formattedDate[0].toUpperCase() + formattedDate.substring(1).toLowerCase();
+
                         return ForecastItemCard(
-                          day: (() {
-                            final formatted = DateFormat('EEEE dd.MM.', 'en').format(DateTime.parse(forecastDay.date));
-                            return formatted[0].toUpperCase() + formatted.substring(1).toLowerCase();
-                          })(),
-                          temp: "${forecastDay.day.maxtempC.round()}\u2103 / ${forecastDay.day.mintempC.round()}\u2103",
+                          day: displayDay,
+                          temp: controller.forecastTemperatures[index],
                           iconPath: controller.getForecastItemAssetPath(code),
                           backgroundColor: controller.getForecastItemBackgroundColor(code),
                           contentColor: controller.getForecastItemContentColor(code),
                           errorBuilder: (context, exception, stackTrace) => _buildErrorPlaceholder(context, exception, stackTrace, false),
                         );
-                      }).toList(),
+                      }),
                     ),
                   );
                 }),
+
                 const SizedBox(height: 20),
               ],
             ),
