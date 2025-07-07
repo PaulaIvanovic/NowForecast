@@ -6,30 +6,28 @@ import 'package:nowforecast/app/data/models/weather_model.dart';
 import 'package:nowforecast/app/data/providers/weather_api_client.dart';
 import 'package:nowforecast/app/utils/app_colors.dart';
 import 'package:nowforecast/app/modules/settings/controllers/settings_controller.dart';
+import 'package:nowforecast/app/modules/menu/controllers/menu_controller.dart';
 import 'package:nowforecast/app/routes/app_routes.dart';
-
 
 class HomeController extends GetxController {
   final WeatherApiClient _weatherApiClient = WeatherApiClient();
   final SettingsController settingsController = Get.find<SettingsController>();
+  final MenuControllerNF menuController = Get.find<MenuControllerNF>();
 
-  final Rx<WeatherResponse?> weatherData = Rx<WeatherResponse?>(null);
-  final RxBool isLoading = true.obs;
-  final RxBool hasError = false.obs;
-  final RxString errorMessage = ''.obs;
+  final weatherData = Rxn<WeatherResponse>();
+  final isLoading = false.obs;
+  final hasError = false.obs;
+  final errorMessage = ''.obs;
 
-  final RxString cityName = "Loading...".obs;
-  final RxString feelsLikeTemperature = "Loading...".obs;
-  final RxString weatherConditionText = "Loading...".obs;
-  final RxString todayTempRange = "".obs;
-  final RxString date = "".obs;
-  final RxString dayNight = "".obs;
-  final RxInt currentWeatherCode = RxInt(-1);
+  final cityName = "Loading...".obs;
+  final feelsLikeTemperature = "Loading...".obs;
+  final weatherConditionText = "Loading...".obs;
+  final todayTempRange = "".obs;
+  final date = "".obs;
+  final currentWeatherCode = (-1).obs;
 
-  final RxList<ForecastDay> forecastDays = <ForecastDay>[].obs;
-
-  /// Transformed list to display daily forecast based on unit
-  final RxList<String> forecastTemperatures = <String>[].obs;
+  final forecastDays = <ForecastDay>[].obs;
+  final forecastTemperatures = <String>[].obs;
 
   final TextEditingController searchController = TextEditingController();
 
@@ -39,7 +37,6 @@ class HomeController extends GetxController {
     Intl.defaultLocale = 'en';
     fetchWeather("Rijeka");
 
-    // Reactively update when temperature unit changes
     ever(settingsController.isCelsius, (_) {
       _updateDisplayedTemperature();
       _updateForecastTemperatures();
@@ -58,118 +55,106 @@ class HomeController extends GetxController {
     errorMessage.value = '';
 
     try {
-      final Map<String, dynamic> rawWeatherData = await _weatherApiClient.fetchWeatherForecast(city, 8);
-      final WeatherResponse apiResponse = WeatherResponse.fromJson(rawWeatherData);
+      final raw = await _weatherApiClient.fetchWeatherForecast(city, 8);
+      final resp = WeatherResponse.fromJson(raw);
+      weatherData.value = resp;
 
-      weatherData.value = apiResponse;
-
-      cityName.value = apiResponse.location.name;
-      weatherConditionText.value = apiResponse.current.condition.text;
-
-      final String dateOnly = apiResponse.location.localtime.split(' ')[0];
-      date.value = DateFormat('EEEE dd.MM.yyyy', 'en').format(DateTime.parse(dateOnly));
-
-      dayNight.value = apiResponse.current.isDay == 1 ? "DAN" : "NOĆ";
-      currentWeatherCode.value = apiResponse.current.condition.code;
+      cityName.value = resp.location.name;
+      weatherConditionText.value = resp.current.condition.text;
+      final localDate = resp.location.localtime.split(' ')[0];
+      date.value = DateFormat('EEEE dd.MM.yyyy', 'en').format(DateTime.parse(localDate));
+      currentWeatherCode.value = resp.current.condition.code;
 
       _updateDisplayedTemperature();
 
-      if (apiResponse.forecast != null && apiResponse.forecast!.forecastday.isNotEmpty) {
-        final today = DateTime.parse(apiResponse.location.localtime.split(' ')[0]);
+      if (resp.forecast?.forecastday.isNotEmpty ?? false) {
+        final today = DateTime.parse(localDate);
+        final forecastList = resp.forecast!.forecastday.where((d) => DateTime.parse(d.date).isAfter(today)).toList();
 
-        final filteredForecast = apiResponse.forecast!.forecastday.where((day) => DateTime.parse(day.date).isAfter(today)).toList();
-
-        List<ForecastDay> finalForecast = [];
-        final tomorrow = today.add(const Duration(days: 1));
-
+        List<ForecastDay> chosen = [];
+        DateTime pointer = today.add(const Duration(days: 1));
         for (int i = 0; i < 7; i++) {
-          final targetDate = tomorrow.add(Duration(days: i));
-
-          final forecastForTargetDate = filteredForecast.firstWhere(
-            (forecastDay) => DateTime.parse(forecastDay.date).isAtSameMomentAs(targetDate),
-            orElse: () => filteredForecast.last,
+          final match = forecastList.firstWhere((d) => DateTime.parse(d.date).isAtSameMomentAs(pointer), orElse: () => forecastList.last,
           );
-
-          finalForecast.add(forecastForTargetDate);
+          chosen.add(match);
+          pointer = pointer.add(const Duration(days: 1));
         }
 
-        forecastDays.assignAll(finalForecast);
+        forecastDays.assignAll(chosen);
         _updateForecastTemperatures();
       } else {
         forecastDays.clear();
         forecastTemperatures.clear();
       }
+
     } catch (e) {
       hasError.value = true;
-      errorMessage.value = "Failed to fetch weather data. Please check the city name or your connection.";
-      _resetDisplayValuesOnError();
+      errorMessage.value = "Error fetching weather. Check city or connection.";
+      _resetState();
     } finally {
       isLoading.value = false;
     }
   }
 
   void _updateDisplayedTemperature() {
-    final WeatherResponse apiResponse = weatherData.value!;
-    final bool isC = settingsController.isCelsius.value;
+    final resp = weatherData.value;
+    if (resp == null) return;
 
-    final double feelsLike = isC ? apiResponse.current.feelslikeC : (apiResponse.current.feelslikeC * 9 / 5) + 32;
-    final unitSymbol = isC ? "\u2103" : "\u2109";
-    feelsLikeTemperature.value = "${feelsLike.round()}$unitSymbol";
+    final isC = settingsController.isCelsius.value;
+    final feels = isC ? resp.current.feelslikeC : resp.current.feelslikeF;
+    final symbol = isC ? "°C" : "°F";
+    feelsLikeTemperature.value = "${feels.round()}$symbol";
 
-    final todayForecast = apiResponse.forecast?.forecastday.firstOrNull;
-    if (todayForecast != null) {
-      final double max = isC ? todayForecast.day.maxtempC : (todayForecast.day.maxtempC * 9 / 5) + 32;
-      final double min = isC ? todayForecast.day.mintempC : (todayForecast.day.mintempC * 9 / 5) + 32;
-      todayTempRange.value = "${max.round()}$unitSymbol / ${min.round()}$unitSymbol";
+    final todayDay = resp.forecast?.forecastday.firstOrNull;
+    if (todayDay != null) {
+      final max = isC ? todayDay.day.maxtempC : todayDay.day.maxtempF;
+      final min = isC ? todayDay.day.mintempC : todayDay.day.mintempF;
+      todayTempRange.value = "${max.round()}$symbol / ${min.round()}$symbol";
     } else {
       todayTempRange.value = "-- / --";
     }
   }
 
   void _updateForecastTemperatures() {
-    final bool isC = settingsController.isCelsius.value;
+    final isC = settingsController.isCelsius.value;
     final symbol = isC ? "°C" : "°F";
-
-    final List<String> transformedTemps = forecastDays.map((day) {
-      final max = isC ? day.day.maxtempC : (day.day.maxtempC * 9 / 5) + 32;
-      final min = isC ? day.day.mintempC : (day.day.mintempC * 9 / 5) + 32;
+    final temps = forecastDays.map((d) {
+      final max = isC ? d.day.maxtempC : d.day.maxtempF;
+      final min = isC ? d.day.mintempC : d.day.mintempF;
       return "${max.round()}$symbol / ${min.round()}$symbol";
     }).toList();
-
-    forecastTemperatures.assignAll(transformedTemps);
+    forecastTemperatures.assignAll(temps);
   }
 
-  void _resetDisplayValuesOnError() {
+  void _resetState() {
     cityName.value = "Error";
     feelsLikeTemperature.value = "--";
-    weatherConditionText.value = "Could not fetch data";
+    weatherConditionText.value = "--";
     todayTempRange.value = "-- / --";
     date.value = "--.--.----";
-    dayNight.value = "";
     currentWeatherCode.value = -1;
     forecastDays.clear();
     forecastTemperatures.clear();
   }
 
-  void onSearchSubmitted(String value) {
-    if (value.isNotEmpty) {
+  void onSearchSubmitted(String val) {
+    if (val.isNotEmpty) {
       FocusManager.instance.primaryFocus?.unfocus();
       searchController.clear();
-      fetchWeather(value);
+      fetchWeather(val);
     }
   }
 
-  void onMenuButtonPressed() {}
-  void onSettingsButtonPressed() {
-    Get.toNamed(Routes.SETTINGS);
+  void onMenuButtonPressed() => Get.toNamed(Routes.MENU);
+  void onSettingsButtonPressed() => Get.toNamed(Routes.SETTINGS);
+  void onSaveLocationToggle() {
+    final c = cityName.value;
+    if (c != "Error" && c != "Loading...") menuController.toggleLocation(c);
   }
 
   String getMainWeatherAssetPath(int code) => 'assets/images/$code.png';
-  String getForecastItemAssetPath(int code) => 'assets/images/$code.png';
+  String getForecastIconPath(int code) => 'assets/images/$code.png';
 
-  Color getForecastItemBackgroundColor(int code) {
-    return AppColors.forecastColors[code] ?? AppColors.defaultGreyBg;
-  }
-
+  Color getForecastItemBackgroundColor(int code) => AppColors.forecastColors[code] ?? AppColors.defaultGreyBg;
   Color getForecastItemContentColor(int code) => Colors.white;
 }
