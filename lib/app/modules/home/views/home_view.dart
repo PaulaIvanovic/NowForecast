@@ -46,7 +46,9 @@ class HomeView extends GetView<HomeController> {
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               ),
-              onSubmitted: controller.onSearchSubmitted,
+              onSubmitted: (val) {
+                controller.onSearchSubmitted(val); // ✅ FIXED: triggers fetchWeather
+              },
             ),
           ),
           actions: [

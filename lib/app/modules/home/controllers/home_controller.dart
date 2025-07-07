@@ -35,7 +35,14 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     Intl.defaultLocale = 'en';
-    fetchWeather("Rijeka");
+
+    // If coming from Menu screen with a selected city
+    final passedCity = Get.arguments;
+    if (passedCity != null && passedCity is String && passedCity.isNotEmpty) {
+      fetchWeather(passedCity);
+    } else {
+      fetchWeather("Rijeka"); // default city
+    }
 
     ever(settingsController.isCelsius, (_) {
       _updateDisplayedTemperature();
@@ -61,6 +68,7 @@ class HomeController extends GetxController {
 
       cityName.value = resp.location.name;
       weatherConditionText.value = resp.current.condition.text;
+
       final localDate = resp.location.localtime.split(' ')[0];
       date.value = DateFormat('EEEE dd.MM.yyyy', 'en').format(DateTime.parse(localDate));
       currentWeatherCode.value = resp.current.condition.code;
@@ -86,7 +94,6 @@ class HomeController extends GetxController {
         forecastDays.clear();
         forecastTemperatures.clear();
       }
-
     } catch (e) {
       hasError.value = true;
       errorMessage.value = "Error fetching weather. Check city or connection.";
@@ -145,16 +152,27 @@ class HomeController extends GetxController {
     }
   }
 
-  void onMenuButtonPressed() => Get.toNamed(Routes.MENU);
+  void onMenuButtonPressed() async {
+    final result = await Get.toNamed(Routes.MENU);
+    if (result != null && result is String && result.isNotEmpty) {
+      fetchWeather(result);
+    }
+  }
+
   void onSettingsButtonPressed() => Get.toNamed(Routes.SETTINGS);
+
   void onSaveLocationToggle() {
     final c = cityName.value;
-    if (c != "Error" && c != "Loading...") menuController.toggleLocation(c);
+    if (c != "Error" && c != "Loading...") {
+      menuController.toggleLocation(c);
+    }
   }
 
   String getMainWeatherAssetPath(int code) => 'assets/images/$code.png';
+
   String getForecastIconPath(int code) => 'assets/images/$code.png';
 
   Color getForecastItemBackgroundColor(int code) => AppColors.forecastColors[code] ?? AppColors.defaultGreyBg;
+
   Color getForecastItemContentColor(int code) => Colors.white;
 }

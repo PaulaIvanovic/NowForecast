@@ -29,7 +29,7 @@ class MenuView extends GetView<MenuControllerNF> {
                 onPressed: () => controller.removeCity(city),
               ),
               onTap: () {
-                // Return city back to Home
+              
                 Get.back(result: city);
               },
             );
