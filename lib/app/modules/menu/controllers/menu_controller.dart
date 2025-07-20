@@ -1,31 +1,36 @@
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MenuControllerNF extends GetxController {
-  // Observable list of saved cities
   final RxList<String> savedCities = <String>[].obs;
-
+  static const _storageKey = 'savedCities';
   @override
-  void onInit() {
-    super.onInit();
+void onReady() {
+    super.onReady();
     _loadInitialLocations();
   }
 
-  // Load initial saved cities (can be replaced with storage later)
-  void _loadInitialLocations() {
-    savedCities.addAll(['Rijeka', 'Zagreb', 'Split']);
-    // TODO: Load from local storage or cloud
+
+  // Load saved cities from local storage
+  Future<void> _loadInitialLocations() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? storedCities = prefs.getStringList(_storageKey);
+    if (storedCities != null && storedCities.isNotEmpty) {
+      savedCities.addAll(storedCities);
+    } else {
+      // Optional: add default cities on first launch
+      savedCities.addAll(['Rijeka', 'Zagreb', 'Split']);
+      await _saveToStorage();
+    }
   }
 
-  // Normalize city names for consistent storage
   String _normalize(String city) => city.trim().toLowerCase();
 
-  // Check if a city is saved
   bool isSaved(String city) {
     final normCity = _normalize(city);
     return savedCities.any((c) => _normalize(c) == normCity);
   }
 
-  // Add or remove a city based on its presence
   void toggleLocation(String city) {
     final normCity = _normalize(city);
     final match = savedCities.firstWhereOrNull((c) => _normalize(c) == normCity);
@@ -34,13 +39,18 @@ class MenuControllerNF extends GetxController {
     } else {
       savedCities.add(city.trim());
     }
-    // TODO: Save updated list to persistent storage
+    _saveToStorage();
   }
 
-  // Explicitly remove a city
   void removeCity(String city) {
     final normCity = _normalize(city);
     savedCities.removeWhere((c) => _normalize(c) == normCity);
-    // TODO: Persist changes
+    _saveToStorage();
+  }
+
+  // Save the updated list to persistent storage
+  Future<void> _saveToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_storageKey, savedCities.toList());
   }
 }
